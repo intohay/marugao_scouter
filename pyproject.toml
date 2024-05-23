@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "marugao"
+version = "0.1.0"
+description = ""
+authors = ["root2116 <root6889@icloud.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+dlib = "^19.24.4"
+opencv-python = "^4.9.0.80"
+imutils = "^0.5.4"
+numpy = "^1.26.4"
+scipy = "^1.13.1"
+shapely = "^2.0.4"
+pillow = "^10.3.0"
+requests = "^2.32.2"
+bs4 = "^0.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

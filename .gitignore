@@ -1,0 +1,6 @@
+output
+imgs
+*.jpg
+*.png
+*.dat
+.DS_Store
