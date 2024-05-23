@@ -113,25 +113,25 @@ for image_path in image_paths:
         print(f"Marugao ratio: {marugao_ratio:.3f}")
 
 
-        lower_points = []
+        # lower_points = []
 
-        for n in list(range(0, 17)):
-            x = landmarks.part(n).x
-            y = landmarks.part(n).y
-            lower_points.append((x, y))
+        # for n in list(range(2, 15)):
+        #     x = landmarks.part(n).x
+        #     y = landmarks.part(n).y
+        #     lower_points.append((x, y))
         
-        lower_points = np.array(lower_points)
+        # lower_points = np.array(lower_points)
 
 
         
-        S_area = cv2.contourArea(lower_points)
-        S_perimeter = cv2.arcLength(lower_points, False)
-        # Sの最初の点、中心、最後の点を結んだときの角度
-        angle = np.abs(np.arctan2(lower_points[0][1] - cy, lower_points[0][0] - cx) - np.arctan2(lower_points[-1][1] - cy, lower_points[-1][0] - cx))
+        # S_area = cv2.contourArea(lower_points)
+        # S_perimeter = cv2.arcLength(lower_points, False)
+        # # Sの最初の点、中心、最後の点を結んだときの角度
+        # angle = np.abs(np.arctan2(lower_points[0][1] - cy, lower_points[0][0] - cx) - np.arctan2(lower_points[-1][1] - cy, lower_points[-1][0] - cx))
         
-        circularity = 2 * angle * S_area / S_perimeter ** 2
+        # circularity = 2 * angle * S_area / S_perimeter ** 2
 
-        print(f"Circularity: {circularity:.3f}")
+        # print(f"Circularity: {circularity:.3f}")
         
         
         # 多角形を描画
@@ -144,13 +144,10 @@ for image_path in image_paths:
         circle_contour = circle_contour.reshape((-1, 1, 2))
         cv2.polylines(image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
 
-        print(f"Marugao Degree: {marugao_ratio*circularity:.3f}")
-        print()
         
-        # これは感覚的な値。多少、輪郭が円じゃなくても顔のパーツが集まってたほうがかわいいから
-        alpha = 0.70
+       
         # Roundness Ratioを円の上のテキストとして描画
-        text = f"Marugao Degree: {marugao_ratio * alpha + circularity * (1 - alpha):.3f}"
+        text = f"Marugao Degree: {marugao_ratio:.3f}"
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2)[0]
         
         text_x = int(cx)
