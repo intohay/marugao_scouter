@@ -6,11 +6,7 @@ from scipy.optimize import minimize
 import argparse
 from shapely.geometry import Polygon
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--image", "-i", type=str, required=True, help="Path to the image file or directory")
-parser.add_argument("--dir", "-d", type=str, help="Path to the output directory")
 
-args = parser.parse_args()
 
 # ファイルパスの設定
 predictor_path = "shape_predictor_68_face_landmarks.dat"
@@ -27,19 +23,9 @@ def distance_to_circle_sum_of_squares(params, points):
         distances = np.sqrt((points[:, 0] - cx) ** 2 + (points[:, 1] - cy) ** 2) - r
         return np.sum(distances ** 2)
 
-
-
-
-# image_pathが画像かディレクトリかを判定(JPEG)
-if os.path.isdir(image_paths[0]):
-    image_paths = [os.path.join(image_paths[0], file) for file in os.listdir(image_paths[0])]
-
-
-for image_path in image_paths:
-    
-    image = cv2.imread(image_path)
+def evaluate_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
+    
     # 顔検出
     faces = detector(gray)
 
@@ -167,10 +153,31 @@ for image_path in image_paths:
 
     
 
-    image_name = os.path.basename(image_path)
-    # 画像を保存    
-    cv2.imwrite(f"{output_dir}/output_{image_name}", image)
+    return image
 
+if __name__=="__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--image", "-i", type=str, required=True, help="Path to the image file or directory")
+    parser.add_argument("--dir", "-d", type=str, help="Path to the output directory")
+
+    args = parser.parse_args()
+
+    # image_pathが画像かディレクトリかを判定(JPEG)
+    if os.path.isdir(image_paths[0]):
+        image_paths = [os.path.join(image_paths[0], file) for file in os.listdir(image_paths[0])]
+
+
+    for image_path in image_paths:
+        
+        image = cv2.imread(image_path)
+
+        evaluated = evaluate_image(image)
+        image_name = os.path.basename(image_path)
+
+        cv2.imwrite(f"{output_dir}/output_{image_name}", evaluated)
+
+        
 
 
 
