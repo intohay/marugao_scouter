@@ -1,8 +1,8 @@
 from flask import Flask, request, send_file
-from PIL import Image
 import io
 from measure import evaluate_image
-
+import cv2
+import numpy as np
 app = Flask(__name__)
 
 @app.route('/upload', methods=['POST'])
@@ -15,7 +15,7 @@ def upload_file():
         return "No selected file", 400
 
     # 画像の読み込み
-    img = Image.open(file.stream)
+    img = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
 
     processed_img = evaluate_image(img)
