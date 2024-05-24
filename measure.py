@@ -8,7 +8,7 @@ from shapely.geometry import Polygon
 
 
 
-
+predictor_path = "shape_predictor_68_face_landmarks.dat"
 
 # dlibの顔検出器と顔のランドマーク検出器を初期化
 detector = dlib.get_frontal_face_detector()
@@ -160,7 +160,7 @@ if __name__=="__main__":
     args = parser.parse_args()
 
     # ファイルパスの設定
-    predictor_path = "shape_predictor_68_face_landmarks.dat"
+    
     image_paths = [args.image]
     output_dir = args.dir
 
