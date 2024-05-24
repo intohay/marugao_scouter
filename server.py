@@ -22,7 +22,7 @@ def upload_file():
 
     # 加工後の画像をバッファに保存
     img_io = io.BytesIO()
-    processed_img.save(img_io, 'JPEG')
+    cv2.imwrite(img_io, processed_img)
     img_io.seek(0)
 
     return send_file(img_io, mimetype='image/jpeg')
