@@ -19,6 +19,51 @@ def distance_to_circle_sum_of_squares(params, points):
         distances = np.sqrt((points[:, 0] - cx) ** 2 + (points[:, 1] - cy) ** 2) - r
         return np.sum(distances ** 2)
 
+def get_face_normal_vector(shape, image):
+    image_points = np.array([
+        (shape.part(30).x, shape.part(30).y),     # Nose tip
+        (shape.part(8).x, shape.part(8).y),       # Chin
+        (shape.part(36).x, shape.part(36).y),     # Left eye left corner
+        (shape.part(45).x, shape.part(45).y),     # Right eye right corner
+        (shape.part(48).x, shape.part(48).y),     # Left Mouth corner
+        (shape.part(54).x, shape.part(54).y)      # Right mouth corner
+    ], dtype="double")
+
+    model_points = np.array([
+        (0.0, 0.0, 0.0),             # Nose tip
+        (0.0, -330.0, -65.0),        # Chin
+        (-225.0, 170.0, -135.0),     # Left eye left corner
+        (225.0, 170.0, -135.0),      # Right eye right corner
+        (-150.0, -150.0, -125.0),    # Left Mouth corner
+        (150.0, -150.0, -125.0)      # Right mouth corner
+    ])
+
+    focal_length = 1.0 * image.shape[1]
+    center = (image.shape[1] / 2, image.shape[0] / 2)
+    camera_matrix = np.array([
+        [focal_length, 0, center[0]],
+        [0, focal_length, center[1]],
+        [0, 0, 1]
+    ], dtype="double")
+
+    dist_coeffs = np.zeros((4,1)) # 歪み係数（無視）
+
+    success, rotation_vector, translation_vector = cv2.solvePnP(model_points, image_points, camera_matrix, dist_coeffs)
+
+    rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+    
+    nose_vector = rotation_matrix[:, 2]
+
+
+    return nose_vector
+
+def calculate_angle_between_vectors(v1, v2):
+    unit_v1 = v1 / np.linalg.norm(v1)
+    unit_v2 = v2 / np.linalg.norm(v2)
+    dot_product = np.dot(unit_v1, unit_v2)
+    angle = np.arccos(dot_product)
+    return angle
+
 def evaluate_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
@@ -28,24 +73,50 @@ def evaluate_image(image):
     
     # 顔のランドマークを描画
     for i, face in enumerate(faces):
-        landmarks = predictor(gray, face)
+        shape = predictor(gray, face)
+        landmarks = np.array([(p.x, p.y) for p in shape.parts()])
+
+
+        normal_vector = -get_face_normal_vector(shape, image)
+        screen_normal_vector = np.array([0, 0, 1])
+
+        print(normal_vector)
+        
+        yaw_angle = calculate_angle_between_vectors(normal_vector, screen_normal_vector)
+
+        print(f"angle: {yaw_angle}")
+        print(f"angle(degrees): {np.degrees(yaw_angle)}")
+        print(f"cos(angle): {np.cos(yaw_angle)}")
+
+        
+       
+
+        for n in range(0, 68):
+            x = landmarks[n][0]
+            y = landmarks[n][1]
+            
+            landmarks[n][0] = int(x / np.cos(yaw_angle))
+        
+            landmarks[n][1] = y
+
+
+       
+
         font_scale = min(image.shape[1], image.shape[0]) / 1000
         font_thickness = int(font_scale * 2)
         
         # 外側のランドマークポイントを取得
         points = []
         for n in list(range(0, 17)):
-            x = landmarks.part(n).x
-            y = landmarks.part(n).y
-            points.append((x, y))
+            points.append(landmarks[n])
             # cv2.circle(image, (x, y), 2, (0, 255, 0), -1)
         
         for n in list(range(26, 16, -1)):
-            x = landmarks.part(n).x
-            y = landmarks.part(n).y
-            points.append((x, y))
+            
+            points.append(landmarks[n])
             # cv2.circle(image, (x, y), 2, (0, 255, 0), -1)
         
+
         
         # 多角形の面積を計算
         contour = np.array(points)
@@ -56,8 +127,8 @@ def evaluate_image(image):
         center = np.mean(points, axis=0)
 
         # 顔の角度を計算
-        left = (landmarks.part(0).x, landmarks.part(0).y)
-        right = (landmarks.part(16).x, landmarks.part(16).y)
+        left = (landmarks[39][0], landmarks[39][1]) # 左目頭
+        right = (landmarks[42][0], landmarks[42][1]) # 右目頭
 
         face_angle = np.arctan2(right[1] - left[1], right[0] - left[0])
         S = []
@@ -117,11 +188,22 @@ def evaluate_image(image):
         
         
         # 多角形を描画
+
+        
+        for i in range(len(points)):
+            points[i][0] = points[i][0] * np.cos(yaw_angle)
+        
         points = np.array(points, np.int32)
         points = points.reshape((-1, 1, 2))
+        
         cv2.polylines(image, [points], isClosed=True, color=(255, 0, 0), thickness=font_thickness*2)
 
         # 円を描画
+
+        for i in range(len(circle_contour)):
+            circle_contour[i][0] = circle_contour[i][0] * np.cos(yaw_angle)
+
+        
         circle_contour = np.array(circle_contour, np.int32)
         circle_contour = circle_contour.reshape((-1, 1, 2))
         cv2.polylines(image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
@@ -129,7 +211,7 @@ def evaluate_image(image):
         
        
         # Roundness Ratioを円の上のテキストとして描画
-        text = f"Marugao Degree: {marugao_ratio:.3f}"
+        text = f"Marugao Score: {marugao_ratio*100:.3f}"
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2)[0]
         
         text_x = int(cx)

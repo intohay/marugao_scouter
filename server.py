@@ -21,8 +21,8 @@ def upload_file():
     processed_img = evaluate_image(img)
 
     # 加工後の画像をバッファに保存
-    img_io = io.BytesIO()
-    cv2.imwrite(img_io, processed_img)
+    _, img_encoded = cv2.imencode('.jpg', processed_img)
+    img_io = io.BytesIO(img_encoded)
     img_io.seek(0)
 
     return send_file(img_io, mimetype='image/jpeg')
