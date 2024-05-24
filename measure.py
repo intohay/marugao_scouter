@@ -8,10 +8,6 @@ from shapely.geometry import Polygon
 
 
 
-# ファイルパスの設定
-predictor_path = "shape_predictor_68_face_landmarks.dat"
-image_paths = [args.image]
-output_dir = args.dir
 
 
 # dlibの顔検出器と顔のランドマーク検出器を初期化
@@ -162,6 +158,12 @@ if __name__=="__main__":
     parser.add_argument("--dir", "-d", type=str, help="Path to the output directory")
 
     args = parser.parse_args()
+
+    # ファイルパスの設定
+    predictor_path = "shape_predictor_68_face_landmarks.dat"
+    image_paths = [args.image]
+    output_dir = args.dir
+
 
     # image_pathが画像かディレクトリかを判定(JPEG)
     if os.path.isdir(image_paths[0]):
