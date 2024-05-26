@@ -19,7 +19,7 @@ def distance_to_circle_sum_of_squares(params, points):
         distances = np.sqrt((points[:, 0] - cx) ** 2 + (points[:, 1] - cy) ** 2) - r
         return np.sum(distances ** 2)
 
-def get_face_normal_vector(shape, image):
+def get_world_points(shape, image, points):
     image_points = np.array([
         (shape.part(30).x, shape.part(30).y),     # Nose tip
         (shape.part(8).x, shape.part(8).y),       # Chin
@@ -52,10 +52,49 @@ def get_face_normal_vector(shape, image):
 
     rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
     
-    nose_vector = rotation_matrix[:, 2]
+    print("rotation_matrix")
+    print(rotation_matrix)
+    print("translation_vector")
+    print(translation_vector)
+    
+    inv_r_matrix = np.linalg.inv(rotation_matrix)
+
+    print("inv_r_matrix")
+    print(inv_r_matrix)
 
 
-    return nose_vector
+    z_world = -140
+
+    world_coordinates = []
+
+
+    print(image.shape)
+    print(center[0], center[1])
+
+    for point in points:
+        
+        image_point = np.array([point[0], point[1], 1.0], dtype="double")
+        normalized_camera_point = np.linalg.inv(camera_matrix) @ image_point
+        
+
+        inv_r_t = inv_r_matrix @ translation_vector
+        inv_r_n = inv_r_matrix @ normalized_camera_point
+
+        scale = (z_world + inv_r_t[2]) / inv_r_n[2]
+
+       
+        camera_point = scale * normalized_camera_point
+        
+        world_point = inv_r_matrix @ (camera_point - translation_vector.flatten())
+
+    
+        world_coordinates.append((world_point[0], world_point[1]))
+        
+    
+    
+
+
+    return world_coordinates, rotation_matrix, translation_vector, camera_matrix, z_world
 
 def calculate_angle_between_vectors(v1, v2):
     unit_v1 = v1 / np.linalg.norm(v1)
@@ -63,6 +102,56 @@ def calculate_angle_between_vectors(v1, v2):
     dot_product = np.dot(unit_v1, unit_v2)
     angle = np.arccos(dot_product)
     return angle
+
+
+def make_positive(points):
+    min_x = points[0][0]
+    min_y = points[0][1]
+
+    for point in points:
+        if point[0] < min_x:
+            min_x = point[0]
+        
+        if point[1] < min_y:
+            min_y = point[1]
+
+    positive_points = []
+    for point in points:
+        positive_point = (point[0] - min_x + 1, point[1] - min_y + 1)
+        positive_points.append(positive_point)
+
+    return positive_points, min_x, min_y
+
+        
+        
+def get_outline(landmarks):
+    # 外側のランドマークポイントを取得
+    points = []
+    for n in list(range(0, 17)):
+        points.append(landmarks[n])
+        # cv2.circle(image, (x, y), 2, (0, 255, 0), -1)
+    
+    for n in list(range(26, 16, -1)):
+        
+        points.append(landmarks[n])
+        # cv2.circle(image, (x, y), 2, (0, 255, 0), -1)
+
+    return points
+
+def convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, points):
+    converted_points = []
+    for point in points:
+        camera_point = r_matrix @ np.array([point[0], point[1], z_point]) + t_vector.flatten()
+        
+        normalized_camera_point = camera_point / camera_point[2]
+
+        converted_point = camera_matrix @ normalized_camera_point
+
+        converted_points.append(converted_point[:2])
+
+    return converted_points
+
+
 
 def evaluate_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -74,51 +163,29 @@ def evaluate_image(image):
     # 顔のランドマークを描画
     for i, face in enumerate(faces):
         shape = predictor(gray, face)
-        landmarks = np.array([(p.x, p.y) for p in shape.parts()])
+        original_landmarks = np.array([(p.x, p.y) for p in shape.parts()])
 
 
-        normal_vector = -get_face_normal_vector(shape, image)
-        screen_normal_vector = np.array([0, 0, 1])
-
-        print(normal_vector)
+        landmarks, r_matrix, t_vector, camera_matrix, z_point = get_world_points(shape, image, original_landmarks)
         
-        yaw_angle = calculate_angle_between_vectors(normal_vector, screen_normal_vector)
-
-        print(f"angle: {yaw_angle}")
-        print(f"angle(degrees): {np.degrees(yaw_angle)}")
-        print(f"cos(angle): {np.cos(yaw_angle)}")
-
-        
-       
-
-        for n in range(0, 68):
-            x = landmarks[n][0]
-            y = landmarks[n][1]
-            
-            landmarks[n][0] = int(x / np.cos(yaw_angle))
-        
-            landmarks[n][1] = y
-
-
-       
 
         font_scale = min(image.shape[1], image.shape[0]) / 1000
         font_thickness = int(font_scale * 2)
         
-        # 外側のランドマークポイントを取得
-        points = []
-        for n in list(range(0, 17)):
-            points.append(landmarks[n])
-            # cv2.circle(image, (x, y), 2, (0, 255, 0), -1)
-        
-        for n in list(range(26, 16, -1)):
-            
-            points.append(landmarks[n])
-            # cv2.circle(image, (x, y), 2, (0, 255, 0), -1)
+        points = get_outline(landmarks)
         
 
+        # すべての点を正にする
+        print(points)
+        points, offset_x, offset_y = make_positive(points)
+        for i in range(len(points)):
+            points[i] = (points[i][0].astype(np.float32), points[i][1].astype(np.float32))
+
         
+
+        print(points)
         # 多角形の面積を計算
+        print(points[0][0].dtype)
         contour = np.array(points)
         area = cv2.contourArea(contour)
         print(f"Polygon Area: {area}")
@@ -134,7 +201,7 @@ def evaluate_image(image):
         S = []
         for point in points:
             angle = np.arctan2(point[1] - center[1], point[0] - center[0])
-            if np.pi / 10 <= angle - face_angle <= np.pi * 9 / 10:
+            if -np.pi  <= angle - face_angle <= 0:
                 S.append(point)
         
         S = np.array(S)
@@ -164,6 +231,7 @@ def evaluate_image(image):
 
         marugao_ratio = intersection_area / area
         print(f"Marugao ratio: {marugao_ratio:.3f}")
+        print()
 
 
         # lower_points = []
@@ -190,30 +258,46 @@ def evaluate_image(image):
         # 多角形を描画
 
         
-        for i in range(len(points)):
-            points[i][0] = points[i][0] * np.cos(yaw_angle)
+        original_points = get_outline(original_landmarks)
+
+        original_points = np.array(original_points, np.int32)
+        original_points = original_points.reshape((-1, 1, 2))
         
-        points = np.array(points, np.int32)
-        points = points.reshape((-1, 1, 2))
-        
-        cv2.polylines(image, [points], isClosed=True, color=(255, 0, 0), thickness=font_thickness*2)
+        cv2.polylines(image, [original_points], isClosed=True, color=(255, 0, 0), thickness=font_thickness*2)
 
         # 円を描画
-
-        for i in range(len(circle_contour)):
-            circle_contour[i][0] = circle_contour[i][0] * np.cos(yaw_angle)
-
         
+        circle_contour = [np.array([p[0]+offset_x, p[1]+offset_y]) for p in circle_contour]
+
+
+        print(f"offset_x: {offset_x}")
+        print(f"offset_y: {offset_y}")
+       
+
+        circle_contour = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, circle_contour)
+        
+       
         circle_contour = np.array(circle_contour, np.int32)
+        circle_point = circle_contour[0]
+
         circle_contour = circle_contour.reshape((-1, 1, 2))
         cv2.polylines(image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
 
         
-       
+
         # Roundness Ratioを円の上のテキストとして描画
         text = f"Marugao Score: {marugao_ratio*100:.3f}"
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2)[0]
+        circle_center = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, [(cx+offset_x, cy+offset_y)])
+        cx = circle_center[0][0]
+        cy = circle_center[0][1]
         
+       
+        r = np.sqrt((circle_point[0] - cx) ** 2 + (circle_point[1] - cy) ** 2)
+        
+
+       
+
         text_x = int(cx)
         text_y = int(cy - r - 10)
         
