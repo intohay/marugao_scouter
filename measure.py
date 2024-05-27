@@ -151,7 +151,28 @@ def convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, points):
 
     return converted_points
 
+def get_circularity(cx, cy, contour):
+    min_radius = np.sqrt((contour[0][0] - cx)**2 + (contour[0][1] - cy) ** 2)
+    max_radius = 0 
+    for i, point in enumerate(contour):
+        x = point[0]
+        y = point[1]
 
+        radius = np.sqrt((x - cx) ** 2 + (y - cy)**2)
+
+        if radius < min_radius:
+            min_radius = radius
+    
+        if radius > max_radius:
+            max_radius = radius
+
+    print(f"max_radius: {max_radius}")
+    print(f"min_radius: {min_radius}")
+    
+    # cv2.line(image, (int(cx), int(cy)), (int(contour[min_index][0]), int(contour[min_index][1])), (255, 0, 255), cv2.LINE_4)
+    # cv2.line(image, (int(cx), int(cy)), (int(contour[max_index][0]), int(contour[max_index][1])), (255, 255, 0), cv2.LINE_4)
+
+    return (max_radius - min_radius) / max_radius 
 
 def evaluate_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -229,30 +250,7 @@ def evaluate_image(image):
 
 
 
-        marugao_ratio = intersection_area / area
-        print(f"Marugao ratio: {marugao_ratio:.3f}")
-        print()
-
-
-        # lower_points = []
-
-        # for n in list(range(2, 15)):
-        #     x = landmarks.part(n).x
-        #     y = landmarks.part(n).y
-        #     lower_points.append((x, y))
         
-        # lower_points = np.array(lower_points)
-
-
-        
-        # S_area = cv2.contourArea(lower_points)
-        # S_perimeter = cv2.arcLength(lower_points, False)
-        # # Sの最初の点、中心、最後の点を結んだときの角度
-        # angle = np.abs(np.arctan2(lower_points[0][1] - cy, lower_points[0][0] - cx) - np.arctan2(lower_points[-1][1] - cy, lower_points[-1][0] - cx))
-        
-        # circularity = 2 * angle * S_area / S_perimeter ** 2
-
-        # print(f"Circularity: {circularity:.3f}")
         
         
         # 多角形を描画
@@ -275,7 +273,15 @@ def evaluate_image(image):
        
 
         circle_contour = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, circle_contour)
+        circle_center = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, [(cx+offset_x, cy+offset_y)])
+        cx = circle_center[0][0]
+        cy = circle_center[0][1]
         
+
+
+
+        marugao_score = (intersection_area / area) 
+        print(f"Marugao Score: {marugao_score}")
        
         circle_contour = np.array(circle_contour, np.int32)
         circle_point = circle_contour[0]
@@ -286,13 +292,9 @@ def evaluate_image(image):
         
 
         # Roundness Ratioを円の上のテキストとして描画
-        text = f"Marugao Score: {marugao_ratio*100:.3f}"
+        text = f"Marugao: {marugao_score*100:.3f}"
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2)[0]
-        circle_center = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, [(cx+offset_x, cy+offset_y)])
-        cx = circle_center[0][0]
-        cy = circle_center[0][1]
-        
-       
+               
         r = np.sqrt((circle_point[0] - cx) ** 2 + (circle_point[1] - cy) ** 2)
         
 

@@ -5,6 +5,10 @@ import cv2
 import numpy as np
 app = Flask(__name__)
 
+@app.route('/')
+def hello():
+    return "Hello, World!"
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'image' not in request.files:
@@ -28,4 +32,4 @@ def upload_file():
     return send_file(img_io, mimetype='image/jpeg')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run()

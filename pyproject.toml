@@ -16,6 +16,8 @@ shapely = "^2.0.4"
 pillow = "^10.3.0"
 requests = "^2.32.2"
 bs4 = "^0.0.2"
+flask = "^3.0.3"
+gunicorn = "^22.0.0"
 
 
 [build-system]

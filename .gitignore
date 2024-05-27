@@ -5,3 +5,4 @@ imgs
 *.dat
 .DS_Store
 .venv
+.pyc
