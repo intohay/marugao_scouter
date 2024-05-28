@@ -3,6 +3,7 @@ import io
 from measure import evaluate_image
 import cv2
 import numpy as np
+import zipfile
 app = Flask(__name__)
 
 @app.route('/')
@@ -22,14 +23,25 @@ def upload_file():
     img = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
 
-    processed_img = evaluate_image(img)
+    processed_imgs = evaluate_image(img)
 
-    # 加工後の画像をバッファに保存
-    _, img_encoded = cv2.imencode('.jpg', processed_img)
-    img_io = io.BytesIO(img_encoded)
-    img_io.seek(0)
+    # Create a zip file in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        # Add each processed image to the zip file
+        for i, processed_img in enumerate(processed_imgs):
+            # Convert the image to bytes
+            _, img_bytes = cv2.imencode('.jpg', processed_img)
+            # Add the image to the zip file with a unique name
+            zip_file.writestr(f'processed_img_{i}.jpg', img_bytes.tobytes())
 
-    return send_file(img_io, mimetype='image/jpeg')
+    # Set the position of the buffer to the beginning
+    zip_buffer.seek(0)
+
+    # Send the zip file to the client
+    return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='processed_images.zip')
+    
+
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="0.0.0.0", port=8000, debug=True)

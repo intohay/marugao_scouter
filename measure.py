@@ -174,15 +174,19 @@ def get_circularity(cx, cy, contour):
 
     return (max_radius - min_radius) / max_radius 
 
-def evaluate_image(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+def evaluate_image(original_image):
+    gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
     
     # 顔検出
     faces = detector(gray)
 
-    
+   
+    evaluated_images = []
+    merged_image = original_image.copy()
+
     # 顔のランドマークを描画
     for i, face in enumerate(faces):
+        image = original_image.copy()
         shape = predictor(gray, face)
         original_landmarks = np.array([(p.x, p.y) for p in shape.parts()])
 
@@ -262,6 +266,7 @@ def evaluate_image(image):
         original_points = original_points.reshape((-1, 1, 2))
         
         cv2.polylines(image, [original_points], isClosed=True, color=(255, 0, 0), thickness=font_thickness*2)
+        cv2.polylines(merged_image, [original_points], isClosed=True, color=(255, 0, 0), thickness=font_thickness*2)
 
         # 円を描画
         
@@ -288,6 +293,7 @@ def evaluate_image(image):
 
         circle_contour = circle_contour.reshape((-1, 1, 2))
         cv2.polylines(image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
+        cv2.polylines(merged_image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
 
         
 
@@ -312,12 +318,16 @@ def evaluate_image(image):
             text_y = text_size[1] + 10
 
         cv2.putText(image, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness*2)
+        text = f"{marugao_score*100:.3f}"
+        cv2.putText(merged_image, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), font_thickness*2)
+
+        evaluated_images.append(image)
 
         
-
+    evaluated_images.append(merged_image)
     
 
-    return image
+    return evaluated_images
 
 if __name__=="__main__":
 
@@ -352,13 +362,3 @@ if __name__=="__main__":
 
 
     
-    
-
-
-# # 画像の表示
-# cv2.imshow("Landmarks", image)
-# key = cv2.waitKey(0)
-
-# # 'q'キーが押された場合のみウィンドウを閉じる例
-# if key == ord('q'):
-#     cv2.destroyAllWindows()
