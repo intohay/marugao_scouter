@@ -182,7 +182,7 @@ def get_circularity(cx, cy, contour):
 def penalty_function(angle):
     return 0.05 / (1 + np.exp(-100*(angle - np.radians(30))))
 
-def evaluate_image(original_image):
+def evaluate_image(original_image, is_adjusted=True):
     gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
     
     # 顔検出
@@ -203,9 +203,10 @@ def evaluate_image(original_image):
         image = original_image.copy()
         original_landmarks = np.array([(p.x, p.y) for p in shape.parts()])
 
-
-        landmarks, r_matrix, t_vector, camera_matrix, z_point, head_angle = get_world_points(shape, image, original_landmarks)
-        
+        if is_adjusted:
+            landmarks, r_matrix, t_vector, camera_matrix, z_point, head_angle = get_world_points(shape, image, original_landmarks)
+        else:
+            landmarks = original_landmarks
 
         font_scale = min(image.shape[1], image.shape[0]) / 1000
         font_thickness = int(font_scale * 2)
@@ -214,17 +215,18 @@ def evaluate_image(original_image):
         
 
         # すべての点を正にする
-        print(points)
-        points, offset_x, offset_y = make_positive(points)
+        offset_x = 0
+        offset_y = 0
+        
+        if is_adjusted:
+            points, offset_x, offset_y = make_positive(points)
+        
         for i in range(len(points)):
             points[i] = (points[i][0].astype(np.float32), points[i][1].astype(np.float32))
 
         
 
-        print(points)
-        # 多角形の面積を計算
-        print(points[0][0].dtype)
-        contour = np.array(points)
+        contour = np.array(points, np.float32)
         area = cv2.contourArea(contour)
         print(f"Polygon Area: {area}")
 
@@ -239,8 +241,12 @@ def evaluate_image(original_image):
         S = []
         for point in points:
             angle = np.arctan2(point[1] - center[1], point[0] - center[0])
-            if -np.pi  <= angle - face_angle <= 0:
-                S.append(point)
+            if is_adjusted:
+                if -np.pi  <= angle - face_angle <= 0:
+                    S.append(point)
+            else:
+                if 0 <= angle - face_angle <= np.pi:
+                    S.append(point)
         
         S = np.array(S)
 
@@ -286,25 +292,24 @@ def evaluate_image(original_image):
         circle_contour = [np.array([p[0]+offset_x, p[1]+offset_y]) for p in circle_contour]
 
 
-        print(f"offset_x: {offset_x}")
-        print(f"offset_y: {offset_y}")
-       
+        if is_adjusted:
+            circle_contour = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, circle_contour)
+            circle_center = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, [(cx+offset_x, cy+offset_y)])
+            cx = circle_center[0][0]
+            cy = circle_center[0][1]
+            
+            circle_point = circle_contour[0]
+            r = np.sqrt((circle_point[0] - cx) ** 2 + (circle_point[1] - cy) ** 2)
+            
 
-        circle_contour = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, circle_contour)
-        circle_center = convert_world_to_image(r_matrix, t_vector, camera_matrix, z_point, [(cx+offset_x, cy+offset_y)])
-        cx = circle_center[0][0]
-        cy = circle_center[0][1]
+
         
-
-
-
         marugao_score = (intersection_area / area) 
         scores.append(marugao_score)
         print(f"Marugao Score: {marugao_score}")
        
+        
         circle_contour = np.array(circle_contour, np.int32)
-        circle_point = circle_contour[0]
-
         circle_contour = circle_contour.reshape((-1, 1, 2))
         cv2.polylines(image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
         cv2.polylines(merged_image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness*2)
@@ -315,7 +320,7 @@ def evaluate_image(original_image):
         text = f"Marugao: {marugao_score*100:.3f}"
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 2)[0]
                
-        r = np.sqrt((circle_point[0] - cx) ** 2 + (circle_point[1] - cy) ** 2)
+        
         
 
        
@@ -342,6 +347,9 @@ def evaluate_image(original_image):
     
 
     return evaluated_images, scores
+
+
+
 
 if __name__=="__main__":
 

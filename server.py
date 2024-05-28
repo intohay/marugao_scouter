@@ -23,7 +23,9 @@ def upload_file():
     img = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
 
-    processed_imgs, scores = evaluate_image(img)
+    adjuested_processed_imgs, adjusted_scores = evaluate_image(img, is_adjusted=True)
+    processed_imgs, scores = evaluate_image(img, is_adjusted=False)
+
 
     # Create a zip file in memory
     zip_buffer = io.BytesIO()
@@ -35,10 +37,24 @@ def upload_file():
             # Add the image to the zip file with a unique name
             zip_file.writestr(f'processed_img_{i}.jpg', img_bytes.tobytes())
 
+        for i, processed_img in enumerate(adjuested_processed_imgs):
+            # Convert the image to bytes
+            _, img_bytes = cv2.imencode('.jpg', processed_img)
+            # Add the image to the zip file with a unique name
+            zip_file.writestr(f'adjuested_processed_img_{i}.jpg', img_bytes.tobytes())
+        
+
     # スコアをカンマ区切りでzipファイルのテキストファイルとして保存
     # スコアは少数第3位まで表示
     with zipfile.ZipFile(zip_buffer, 'a') as zip_file:
-        zip_file.writestr('scores.txt', '\n'.join([f'{score*100:.3f}' for score in scores]))
+        data = "non-adjusted scores\n"
+        data += '\n'.join([f'{score*100:.3f}' for score in scores])
+        data += "\n"
+        data += "adjusted scores\n"
+        data += '\n'.join([f'{score*100:.3f}' for score in adjusted_scores])
+        zip_file.writestr('scores.txt', data)
+        
+        
     
 
 
@@ -51,4 +67,4 @@ def upload_file():
 
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000)
