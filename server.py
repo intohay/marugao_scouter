@@ -23,7 +23,7 @@ def upload_file():
     img = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
 
-    processed_imgs = evaluate_image(img)
+    processed_imgs, scores = evaluate_image(img)
 
     # Create a zip file in memory
     zip_buffer = io.BytesIO()
@@ -34,6 +34,13 @@ def upload_file():
             _, img_bytes = cv2.imencode('.jpg', processed_img)
             # Add the image to the zip file with a unique name
             zip_file.writestr(f'processed_img_{i}.jpg', img_bytes.tobytes())
+
+    # スコアをカンマ区切りでzipファイルのテキストファイルとして保存
+    # スコアは少数第3位まで表示
+    with zipfile.ZipFile(zip_buffer, 'a') as zip_file:
+        zip_file.writestr('scores.txt', '\n'.join([f'{score:.3f}' for score in scores]))
+    
+
 
     # Set the position of the buffer to the beginning
     zip_buffer.seek(0)

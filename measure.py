@@ -187,15 +187,20 @@ def evaluate_image(original_image):
     
     # 顔検出
     faces = detector(gray)
+    shapes = [predictor(gray, face) for face in faces]
+    # shapesを1番のランドマークの座標順にソート
+    shapes = sorted(shapes, key=lambda x: x.part(0).x)
 
-   
+
+
+
     evaluated_images = []
     merged_image = original_image.copy()
 
+    scores = []
     # 顔のランドマークを描画
-    for i, face in enumerate(faces):
+    for i, shape in enumerate(shapes):
         image = original_image.copy()
-        shape = predictor(gray, face)
         original_landmarks = np.array([(p.x, p.y) for p in shape.parts()])
 
 
@@ -294,6 +299,7 @@ def evaluate_image(original_image):
 
 
         marugao_score = (intersection_area / area) 
+        scores.append(marugao_score)
         print(f"Marugao Score: {marugao_score}")
        
         circle_contour = np.array(circle_contour, np.int32)
@@ -335,7 +341,7 @@ def evaluate_image(original_image):
         evaluated_images.append(merged_image)
     
 
-    return evaluated_images
+    return evaluated_images, scores
 
 if __name__=="__main__":
 
