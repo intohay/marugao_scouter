@@ -31,11 +31,11 @@ def get_world_points(shape, image, points):
 
     model_points = np.array([
         (0.0, 0.0, 0.0),             # Nose tip
-        (0.0, -330.0, -65.0),        # Chin
-        (-225.0, 170.0, -135.0),     # Left eye left corner
-        (225.0, 170.0, -135.0),      # Right eye right corner
-        (-150.0, -150.0, -125.0),    # Left Mouth corner
-        (150.0, -150.0, -125.0)      # Right mouth corner
+        (0.0, -447.0, -208.0),        # Chin
+        (-293.0, 230.0, -298.0),     # Left eye left corner
+        (293.0, 230.0, -298.0),      # Right eye right corner
+        (-150.0, -192.0, -208.0),    # Left Mouth corner
+        (150.0, -192.0, -208.0)      # Right mouth corner
     ])
 
     focal_length = 1.0 * image.shape[1]
@@ -217,7 +217,7 @@ def evaluate_image(original_image, is_adjusted=True):
         # すべての点を正にする
         offset_x = 0
         offset_y = 0
-        
+
         if is_adjusted:
             points, offset_x, offset_y = make_positive(points)
         
