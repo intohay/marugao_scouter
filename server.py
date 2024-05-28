@@ -38,7 +38,7 @@ def upload_file():
     # スコアをカンマ区切りでzipファイルのテキストファイルとして保存
     # スコアは少数第3位まで表示
     with zipfile.ZipFile(zip_buffer, 'a') as zip_file:
-        zip_file.writestr('scores.txt', '\n'.join([f'{score:.3f}' for score in scores]))
+        zip_file.writestr('scores.txt', '\n'.join([f'{score*100:.3f}' for score in scores]))
     
 
 
