@@ -97,6 +97,7 @@ def get_world_points(shape, image, points):
 
     camera_vector = np.array([0, 0, 1])
     angle = calculate_angle_between_vectors(normal_vector, camera_vector)
+    print(f"Angle: {angle}")
     return world_coordinates, rotation_matrix, translation_vector, camera_matrix, z_world, angle
 
 def calculate_angle_between_vectors(v1, v2):
@@ -176,6 +177,10 @@ def get_circularity(cx, cy, contour):
     # cv2.line(image, (int(cx), int(cy)), (int(contour[max_index][0]), int(contour[max_index][1])), (255, 255, 0), cv2.LINE_4)
 
     return (max_radius - min_radius) / max_radius 
+
+
+def penalty_function(angle):
+    return 0.05 / (1 + np.exp(-100*(angle - np.radians(30))))
 
 def evaluate_image(original_image):
     gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
@@ -288,7 +293,7 @@ def evaluate_image(original_image):
 
 
 
-        marugao_score = (intersection_area / area) - 5 * head_angle
+        marugao_score = (intersection_area / area) 
         print(f"Marugao Score: {marugao_score}")
        
         circle_contour = np.array(circle_contour, np.int32)
@@ -326,8 +331,8 @@ def evaluate_image(original_image):
 
         evaluated_images.append(image)
 
-        
-    evaluated_images.append(merged_image)
+    if len(evaluated_images) > 1:
+        evaluated_images.append(merged_image)
     
 
     return evaluated_images
