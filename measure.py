@@ -63,7 +63,7 @@ def get_world_points(shape, image, points):
     print(inv_r_matrix)
 
 
-    z_world = -140
+    z_world = -500.0
 
     world_coordinates = []
 
