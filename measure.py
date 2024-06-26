@@ -480,14 +480,14 @@ def interpolate(contour):
 
 
 
-def evaluate_image_with_segmentation(image_path):
+def evaluate_image_with_segmentation(original_image):
     
 
     
     
-    print(f"Processing {image_path}")
+    
     # 画像を読み込む
-    original_image = cv2.imread(image_path)
+
     print("orignal_image: ", original_image.shape)
     gray = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
     
