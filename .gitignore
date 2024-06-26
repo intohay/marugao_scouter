@@ -6,3 +6,5 @@ imgs
 .DS_Store
 .venv
 *.pyc
+*.jpeg
+*.gif
