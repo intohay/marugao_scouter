@@ -511,6 +511,7 @@ def evaluate_image_with_segmentation(image_path):
     print(f"Image size: {w}x{h}")
 
     results = []
+    scores = []
 
 
     for shape, face in shapes_faces:
@@ -880,12 +881,13 @@ def evaluate_image_with_segmentation(image_path):
         # cv2.destroyAllWindows()
 
         results.append(image)
+        scores.append(marugao_score)
 
         
         
 
    
-    return results
+    return results, scores
 
 
 
