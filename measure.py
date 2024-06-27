@@ -856,11 +856,61 @@ def evaluate_image_with_segmentation(original_image):
 
         # IoUを描画
         
+        
+        upper_inclusion_rate_text = f"{upper_inclusion_rate*100:.3f}"
+        upper_inclusion_rate_text_size = cv2.getTextSize(upper_inclusion_rate_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale*2, font_thickness)[0]
+
+        upper_inclusion_rate_text_x = int(cx + r)
+        upper_inclusion_rate_text_y = int(cy - r/2)
+
+        # クロップの分を補正
+        upper_inclusion_rate_text_x += int(rect_left)
+        upper_inclusion_rate_text_y += int(rect_top)
+
+        # テキストが画像の右端を超えないように調整
+        if upper_inclusion_rate_text_x + upper_inclusion_rate_text_size[0] > image.shape[1]:
+            upper_inclusion_rate_text_x = image.shape[1] - upper_inclusion_rate_text_size[0] - 10
+            
+        # テキストが画像の上端を超えないように調整
+        if upper_inclusion_rate_text_y - upper_inclusion_rate_text_size[1] < 0:
+            upper_inclusion_rate_text_y = upper_inclusion_rate_text_size[1] + 10
+        
+        cv2.putText(image, upper_inclusion_rate_text, (upper_inclusion_rate_text_x, upper_inclusion_rate_text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale*2, (0, 255, 0), font_thickness)
+
+
+        lower_iou_text = f"{lower_iou*100:.3f}"
+        lower_iou_text_size = cv2.getTextSize(lower_iou_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale*2, font_thickness)[0]
+
+        lower_iou_text_x = int(cx + r)
+        lower_iou_text_y = int(cy + r/2)
+
+        # クロップの分を補正
+        lower_iou_text_x += int(rect_left)
+        lower_iou_text_y += int(rect_top)
+
+        # テキストが画像の右端を超えないように調整
+        if lower_iou_text_x + lower_iou_text_size[0] > image.shape[1]:
+            lower_iou_text_x = image.shape[1] - lower_iou_text_size[0] - 10
+        
+        # テキストが画像の上端を超えないように調整
+        if lower_iou_text_y - lower_iou_text_size[1] < 0:
+            lower_iou_text_y = lower_iou_text_size[1] + 10
+
+        cv2.putText(image, lower_iou_text, (lower_iou_text_x, lower_iou_text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale*2, (255, 0, ), font_thickness)
+
         text = f"Marugao: {marugao_score*100:.3f}"
         text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale*2, font_thickness)[0]
 
+        
+        
+
+
         text_x = int(cx - r)
         text_y = int(cy - r - 10)
+
+        # クロップの分を補正
+        text_x += int(rect_left)
+        text_y += int(rect_top)
         
         # テキストが画像の右端を超えないように調整
         if text_x + text_size[0] > image.shape[1]:
@@ -870,9 +920,7 @@ def evaluate_image_with_segmentation(original_image):
         if text_y - text_size[1] < 0:
             text_y = text_size[1] + 10
 
-        # クロップの分を補正
-        text_x += int(rect_left)
-        text_y += int(rect_top)
+        
         
         cv2.putText(image, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale*2, (0, 0, 255), font_thickness)
         
@@ -919,10 +967,10 @@ if __name__=="__main__":
         # image_name = os.path.basename(image_path)
 
         # cv2.imwrite(f"{output_dir}/output_{image_name}", evaluated)
+        image = cv2.imread(image_path)
+        processed_image, scores = evaluate_image_with_segmentation(image)
 
-        results = evaluate_image_with_segmentation(image_path)
-
-        for i, image in enumerate(results):
+        for i, image in enumerate(processed_image):
             
             # save the image
             image_name = os.path.basename(image_path)
