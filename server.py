@@ -97,7 +97,7 @@ def upload_file2():
     # スコアは少数第3位まで表示
     with zipfile.ZipFile(zip_buffer, 'a') as zip_file:
         data = "scores\n"
-        data += '\n'.join([f'{score*100:.3f}' for score in scores])
+        data += '\n'.join([f'{score*100:.3f} ({iou*100:.3f}, {inc*100:.3f})' for (iou, inc, score) in scores])
         data += "\n"
         zip_file.writestr('scores.txt', data)
         

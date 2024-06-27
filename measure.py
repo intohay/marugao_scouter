@@ -929,7 +929,7 @@ def evaluate_image_with_segmentation(original_image):
         # cv2.destroyAllWindows()
 
         results.append(image)
-        scores.append(marugao_score)
+        scores.append((lower_iou, upper_inclusion_rate, marugao_score))
 
         
         
