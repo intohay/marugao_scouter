@@ -770,10 +770,11 @@ def evaluate_image_with_segmentation(original_image):
         lower_points[:, 0, 1] += int(rect_top)
 
 
-        
+        overlay = image.copy()
+
         # upper_contour と lower_contour を描画
-        cv2.polylines(image, [upper_points], isClosed=False, color=(0, 255, 0), thickness=font_thickness)
-        cv2.polylines(image, [lower_points], isClosed=False, color=(255, 0, 0), thickness=font_thickness)
+        cv2.polylines(overlay, [upper_points], isClosed=False, color=(0, 255, 0), thickness=font_thickness)
+        cv2.polylines(overlay, [lower_points], isClosed=False, color=(255, 0, 0), thickness=font_thickness)
 
         # cv2.imshow("image", image)
         # cv2.waitKey(0)
@@ -852,7 +853,7 @@ def evaluate_image_with_segmentation(original_image):
         circle_contour[:, 0, 1] += int(rect_top)
         
 
-        cv2.polylines(image, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness)
+        cv2.polylines(overlay, [circle_contour], isClosed=True, color=(0, 0, 255), thickness=font_thickness)
 
         # IoUを描画
         
@@ -927,6 +928,11 @@ def evaluate_image_with_segmentation(original_image):
         # cv2.imshow("image", image)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
+
+        
+        cv2.addWeighted(overlay, 0.3, image, 1 - 0.3, 0, image)
+
+
 
         results.append(image)
         scores.append((lower_iou, upper_inclusion_rate, marugao_score))
