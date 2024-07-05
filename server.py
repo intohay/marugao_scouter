@@ -1,6 +1,6 @@
 from flask import Flask, request, send_file
 import io
-from rating import evaluate_image_with_dlib, evaluate_image
+from rating import evaluate_image_with_dlib, rate_roundness
 import cv2
 import numpy as np
 import zipfile
@@ -67,7 +67,7 @@ def upload_file2():
     img = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_COLOR)
 
 
-    images, scores = evaluate_image(img)
+    images, scores = rate_roundness(img)
    
 
     zip_buffer = io.BytesIO()
