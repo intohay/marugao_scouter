@@ -54,7 +54,6 @@ def get_head_contour_points(image, cp='79999_iter.pth'):
 def get_face_contour_points(image, cp='79999_iter.pth'):
 
     
-    print("in get_face_contour_points")
     n_classes = 19
     net = BiSeNet(n_classes=n_classes)
     save_pth = cp
@@ -70,12 +69,10 @@ def get_face_contour_points(image, cp='79999_iter.pth'):
     img = to_tensor(image)
     img = torch.unsqueeze(img, 0)
 
-    print("before with torch.no_grad()")
     with torch.no_grad():
         out = net(img)[0]
         parsing = out.squeeze(0).cpu().numpy().argmax(0)
 
-    print("after torch.no_grad()")
     
     atts = ['skin', 'l_brow', 'r_brow', 'l_eye', 'r_eye', 'eye_g', 'l_ear', 'r_ear', 'ear_r',
                 'nose', 'mouth', 'u_lip', 'l_lip', 'neck', 'neck_l', 'cloth', 'hair', 'hat']
@@ -83,13 +80,9 @@ def get_face_contour_points(image, cp='79999_iter.pth'):
 
     face_label_nums = [atts.index(label)+1 for label in face_labels]
 
-    print(face_label_nums)
     # face_labelsの部分のマスクを作成
     face_mask = np.isin(parsing, face_label_nums).astype(np.uint8)
 
-
-    print(face_mask)
-    print("findin contours")
     # 輪郭を検出
     contours, _ = cv2.findContours(face_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
