@@ -8,8 +8,7 @@ import argparse
 from shapely.geometry import Polygon
 from PIL import Image
 from shapely.geometry import Point
-from scipy.interpolate import splprep, splev
-
+from scipy.interpolate import splprep, splev, interp1d
 from face_contour import get_face_contour_points, get_head_contour_points
 
 predictor_path = "shape_predictor_68_face_landmarks.dat"
@@ -125,9 +124,10 @@ def make_positive(points):
 
     positive_points = []
     for point in points:
-        positive_point = (point[0] - min_x + 1, point[1] - min_y + 1)
+        positive_point = np.array([point[0] - min_x + 1, point[1] - min_y + 1])
         positive_points.append(positive_point)
 
+    positive_points = np.array(positive_points)
     return positive_points, min_x, min_y
 
         
@@ -363,6 +363,46 @@ def shift_contour(contour):
     return np.roll(contour, -max_index-1, axis=0)
 
 
+# contourはface_angleで回転済みだとする
+def ignore_protrusion(contour):
+    original_contour = contour.copy()
+    # contour : (N, 2)
+    # 順番はそのままで、y座標が大きい値を30%だけ取得
+    contour = contour[contour[:, 1] > np.percentile(contour[:, 1], 35)]
+
+    
+    
+    # 10%の一定の間隔で点を取得
+    filtered_contour = [contour[0]]
+
+    interval = int(len(contour) * 0.1)
+    if interval < 0:
+        interval = 1
+
+    for i in range(interval, len(contour), interval):
+        filtered_contour.append(contour[i])
+    
+    if not np.array_equal(filtered_contour[-1], contour[-1]):
+        filtered_contour.append(contour[-1])
+
+    filtered_contour = np.array(filtered_contour)
+    
+    # contourを使ったスプライン補間
+    tck, u = splprep([filtered_contour[:, 0], filtered_contour[:, 1]], s=0)
+
+    # 輪郭を再サンプリング
+    new_contour = np.array(splev(np.linspace(0, 1, len(original_contour)), tck)).T
+    
+
+    return new_contour
+
+
+
+
+
+        
+
+
 
 
 # 顔が含まれるように画像をクロップ
@@ -419,6 +459,23 @@ def get_upper_contour_points(contour, face_angle, center):
 
     return points
 
+
+def resample_contour(points, num_points):
+    # Calculate cumulative distance along the contour
+    distances = np.sqrt(np.sum(np.diff(points, axis=0)**2, axis=1))
+    cumulative_distances = np.insert(np.cumsum(distances), 0, 0)
+
+    # Create an interpolator function for the cumulative distance
+    fx = interp1d(cumulative_distances, points[:, 0], kind='linear')
+    fy = interp1d(cumulative_distances, points[:, 1], kind='linear')
+
+    # Generate equally spaced cumulative distances
+    equal_distances = np.linspace(0, cumulative_distances[-1], num_points)
+
+    # Generate new points
+    new_points = np.vstack((fx(equal_distances), fy(equal_distances))).T
+    return new_points
+    
 
 def rate_roundness(original_image):
         
@@ -506,53 +563,107 @@ def rate_roundness(original_image):
         upper_right_point = upper_contour[0]
         upper_left_point = upper_contour[-1]
 
+        # # upper_right_point描画
+        # cv2.circle(image, (int(upper_right_point[0]), int(upper_right_point[1])), 2, (255, 255, 0), -1) 
+        # # upper_left_point描画
+        # cv2.circle(image, (int(upper_left_point[0]), int(upper_left_point[1])), 2, (0, 255, 0), -1) 
+
         # 円の下側にある輪郭のみを取得
         lower_contour = get_lower_contour_points(contour, face_angle, (cx, cy))
         if len(lower_contour) == 0:
             continue
+
+
         lower_contour = shift_contour(lower_contour)
         
         lower_right_point = lower_contour[-1]
         lower_left_point = lower_contour[0]
 
+        # # lower_right_point描画
+        # cv2.circle(image, (int(lower_right_point[0]), int(lower_right_point[1])), 2, (0, 255, 255), -1)
+        # # lower_left_point描画
+        # cv2.circle(image, (int(lower_left_point[0]), int(lower_left_point[1])), 2, (255, 0, 0), -1)
 
-        lower_left_end_r = np.linalg.norm(lower_left_point - (cx, cy))
-        lower_right_end_r = np.linalg.norm(lower_right_point - (cx, cy))
-        lower_left_end = (cx - lower_left_end_r * np.cos(face_angle), cy - lower_left_end_r * np.sin(face_angle))
-        lower_right_end = (cx + lower_right_end_r * np.cos(face_angle), cy + lower_right_end_r * np.sin(face_angle))
 
-
-        upper_left_end_r = np.linalg.norm(upper_left_point - (cx, cy))
-        upper_right_end_r = np.linalg.norm(upper_right_point - (cx, cy))
-        upper_left_end = (cx - upper_left_end_r * np.cos(face_angle), cy - upper_left_end_r * np.sin(face_angle))
-        upper_right_end = (cx + upper_right_end_r * np.cos(face_angle), cy + upper_right_end_r * np.sin(face_angle))
 
         
-        lower_left_end = np.array(lower_left_end)
-        lower_right_end = np.array(lower_right_end)
-        upper_left_end = np.array(upper_left_end)
-        upper_right_end = np.array(upper_right_end)
+        upper_left_end_r = np.linalg.norm(upper_left_point - (cx, cy))
+        lower_left_end_r = np.linalg.norm(lower_left_point - (cx, cy))
+
+        left_end_r = (lower_left_end_r + upper_left_end_r) / 2
+        
+        upper_right_end_r = np.linalg.norm(upper_right_point - (cx, cy))
+        lower_right_end_r = np.linalg.norm(lower_right_point - (cx, cy))
+
+        right_end_r = (lower_right_end_r + upper_right_end_r) / 2
+        
+        
+        left_end = (cx - left_end_r * np.cos(face_angle), cy - left_end_r * np.sin(face_angle))
+        right_end = (cx + right_end_r * np.cos(face_angle), cy + right_end_r * np.sin(face_angle))
+    
+
+        left_end = np.array(left_end)
+        right_end = np.array(right_end)
+
+    
 
         # 上下の輪郭に円の直径の直線上の点を追加
-        insertion_index = find_insertion_index(upper_contour, upper_left_end)
-        upper_contour = np.insert(upper_contour, insertion_index, upper_left_end, axis=0)
-        insertion_index = find_insertion_index(upper_contour, upper_right_end)
-        upper_contour = np.insert(upper_contour, insertion_index, upper_right_end, axis=0)
+        insertion_index = find_insertion_index(upper_contour, left_end)
+        upper_contour = np.insert(upper_contour, insertion_index, left_end, axis=0)
 
-        insertion_index = find_insertion_index(lower_contour, lower_left_end)
-        lower_contour = np.insert(lower_contour, insertion_index, lower_left_end, axis=0)
-        insertion_index = find_insertion_index(lower_contour, lower_right_end)
-        lower_contour = np.insert(lower_contour, insertion_index, lower_right_end, axis=0)
+        insertion_index = find_insertion_index(upper_contour, right_end)
+        upper_contour = np.insert(upper_contour, insertion_index, right_end, axis=0)
+
+        insertion_index = find_insertion_index(lower_contour, left_end)
+        lower_contour = np.insert(lower_contour, insertion_index, left_end, axis=0)
+        insertion_index = find_insertion_index(lower_contour, right_end)
+        lower_contour = np.insert(lower_contour, insertion_index, right_end, axis=0)
         
     
         upper_contour = shift_contour(upper_contour)
         lower_contour = shift_contour(lower_contour)
 
+        
+       
+
+        
+        upper_contour = resample_contour(upper_contour, len(upper_contour))
+
+        
+
+
+        rotation_matrix = np.array([[np.cos(face_angle), -np.sin(face_angle)], [np.sin(face_angle), np.cos(face_angle)]])
+        inv_rotation_matrix = np.array([[np.cos(-face_angle), -np.sin(-face_angle)], [np.sin(-face_angle), np.cos(-face_angle)]])
+        upper_contour = upper_contour - np.array([cx, cy])
+        upper_contour = upper_contour @ rotation_matrix
+
+        
+
+        upper_contour = ignore_protrusion(upper_contour)
+
+
+    
+
+        upper_contour = upper_contour @ inv_rotation_matrix
+        upper_contour = upper_contour + np.array([cx, cy])
+
+
+        
+
+        # upper_contour_test = np.array(upper_contour, np.int32)
+        # upper_contour_test = upper_contour_test.reshape((-1, 1, 2))
+        # upper_contour_test[:, 0, 0] += int(rect_left)
+        # upper_contour_test[:, 0, 1] += int(rect_top)
+        # cv2.polylines(image, [upper_contour_test], isClosed=True, color=(255, 0, 0), thickness=font_thickness)
+        
+
+        # # # show
+        # cv2.imshow("image", image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         
         
-
-
         overlay = image.copy()
 
 
@@ -570,6 +681,10 @@ def rate_roundness(original_image):
 
         upper_rectangle = Polygon([left_end, right_end, right_upper_corner, left_upper_corner])
         upper_circle = upper_rectangle.intersection(circle)
+
+        if not upper_polygon.is_valid:
+            upper_polygon = upper_polygon.buffer(0)
+        
         upper_intersection_area = upper_polygon.intersection(upper_circle).area
         
         upper_inclusion_rate = upper_intersection_area / upper_polygon.area
@@ -608,7 +723,7 @@ def rate_roundness(original_image):
         lower_contour = np.array(lower_contour, np.int32)
         lower_contour = lower_contour.reshape((-1, 1, 2))
 
-
+        print(upper_contour[-1])
         # upper_pointsとlower_pointsを補正
         upper_contour[:, 0, 0] += int(rect_left)
         upper_contour[:, 0, 1] += int(rect_top)
@@ -616,6 +731,7 @@ def rate_roundness(original_image):
         lower_contour[:, 0, 1] += int(rect_top)
 
         # upper_contour と lower_contour を描画
+       
         cv2.polylines(overlay, [upper_contour], isClosed=False, color=(0, 255, 0), thickness=font_thickness)
         cv2.polylines(overlay, [lower_contour], isClosed=False, color=(255, 0, 0), thickness=font_thickness)
 
@@ -743,6 +859,7 @@ if __name__=="__main__":
         # image_name = os.path.basename(image_path)
 
         # cv2.imwrite(f"{output_dir}/output_{image_name}", evaluated)
+        print(image_path)
         image = cv2.imread(image_path)
         processed_image, scores = rate_roundness(image)
 
